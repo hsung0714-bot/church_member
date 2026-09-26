@@ -10,19 +10,6 @@ import {
   varchar,
 } from "drizzle-orm/mysql-core";
 
-/** Core identity table for username/password login. */
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  username: varchar("username", { length: 64 }).notNull().unique(),
-  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
-  name: varchar("name", { length: 120 }),
-  email: varchar("email", { length: 320 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
-
 export const churchGroups = mysqlTable(
   "church_groups",
   {
@@ -72,7 +59,6 @@ export const attendance = mysqlTable(
       .notNull()
       .references(() => members.id, { onDelete: "cascade" }),
     attended: boolean("attended").default(false).notNull(),
-    recordedBy: int("recordedBy").references(() => users.id),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
@@ -82,8 +68,6 @@ export const attendance = mysqlTable(
   ],
 );
 
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
 export type ChurchGroup = typeof churchGroups.$inferSelect;
 export type Member = typeof members.$inferSelect;
 export type AttendanceWeek = typeof attendanceWeeks.$inferSelect;

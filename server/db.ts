@@ -5,7 +5,6 @@ import {
   attendanceWeeks,
   churchGroups,
   members,
-  users,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -21,43 +20,6 @@ async function requireDb() {
   const db = await getDb();
   if (!db) throw new Error("Database is unavailable");
   return db;
-}
-
-export async function getUserById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return result[0];
-}
-
-export async function getUserByUsername(username: string) {
-  const db = await getDb();
-  if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-  return result[0];
-}
-
-export async function countUsers(): Promise<number> {
-  const db = await requireDb();
-  const [row] = await db.select({ value: count() }).from(users);
-  return Number(row?.value ?? 0);
-}
-
-export async function createUser(input: {
-  username: string;
-  passwordHash: string;
-  name?: string | null;
-  role: "user" | "admin";
-}) {
-  const db = await requireDb();
-  await db.insert(users).values({ ...input, lastSignedIn: new Date() });
-  const result = await db.select().from(users).where(eq(users.username, input.username)).limit(1);
-  return result[0]!;
-}
-
-export async function touchLastSignedIn(id: number): Promise<void> {
-  const db = await requireDb();
-  await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, id));
 }
 
 export async function listGroups() {
@@ -161,7 +123,6 @@ export async function getWeeklyAttendance(serviceDate: string) {
 
 export async function saveWeeklyAttendance(input: {
   serviceDate: string;
-  recordedBy: number;
   records: { memberId: number; attended: boolean }[];
 }) {
   const db = await requireDb();
@@ -175,13 +136,11 @@ export async function saveWeeklyAttendance(input: {
         weekId: week.id,
         memberId: record.memberId,
         attended: record.attended,
-        recordedBy: input.recordedBy,
       })),
     )
     .onDuplicateKeyUpdate({
       set: {
         attended: sql`VALUES(${attendance.attended})`,
-        recordedBy: input.recordedBy,
         updatedAt: new Date(),
       },
     });

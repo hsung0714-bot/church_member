@@ -22,6 +22,13 @@
       "when": 1790434892093,
       "tag": "0002_lovely_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1790435723229,
+      "tag": "0003_special_magus",
+      "breakpoints": true
     }
   ]
 }

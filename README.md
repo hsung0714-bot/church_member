@@ -2,13 +2,13 @@
 
 교회 서기·임원을 위한 **모바일 우선 출석 관리 MVP**입니다. 종이 출석부를 대체하는 회원 등록, 주차별 출석 체크, 전체/기수별 통계를 제공합니다.
 
-> 현재 MVP는 React + tRPC + MySQL(drizzle-orm) 기반으로 동작하며, 아이디/비밀번호 로그인만으로 Manus 플랫폼 밖에서도 독립적으로 실행할 수 있습니다. 요청하신 **Next.js + Supabase** 전환을 위해 Supabase 커넥터를 활성화했지만, 연결된 Supabase 프로젝트는 아직 없습니다. Supabase 프로젝트 생성은 조직 선택과 비용 확인이 필요하므로 이를 진행하기 전까지는 현재 MVP 런타임을 사용합니다.
+> 현재 MVP는 React + tRPC + MySQL(drizzle-orm) 기반으로 동작하며, Manus 플랫폼 밖에서도 독립적으로 실행할 수 있습니다. **로그인/권한 기능은 아직 붙이지 않았습니다** — 서기·임원 몇 명이 로컬에서 직접 쓰는 초기 단계라 접근 제어 없이 모든 화면이 열려 있고, 실사용 규모가 커지면 그때 추가합니다. 요청하신 **Next.js + Supabase** 전환을 위해 Supabase 커넥터를 활성화했지만, 연결된 Supabase 프로젝트는 아직 없습니다. Supabase 프로젝트 생성은 조직 선택과 비용 확인이 필요하므로 이를 진행하기 전까지는 현재 MVP 런타임을 사용합니다.
 
 ## MVP에 포함된 기능
 
 | 영역 | 제공 기능 |
 |---|---|
-| 접근 제어 | 아이디/비밀번호 로그인, 서버 측 `admin` 권한 검증, 일반 사용자 접근 차단 |
+| 접근 제어 | (아직 없음 — 로그인 없이 모든 화면·API가 열려 있음) |
 | 회원 명단 | 기수/부서 생성, 회원 등록, 연락처 및 상태 관리, 이름·기수 검색 |
 | 출석 체크 | 예배일 선택, 기수별 그룹, 이름 탭 토글, 전체 출석/해제, 일괄 저장 |
 | 통계 | 최근 최대 8주 전체 출석 추이(Line chart), 최근 주차 기수별 출석률(Bar chart) |
@@ -24,10 +24,8 @@
 
 ## 권한 운영
 
-- 로그인 화면에서 회원가입하면 계정이 생성됩니다. **가장 먼저 가입하는 계정이 자동으로 `admin` 권한**을 받습니다.
-- 다른 서기·임원에게 접근 권한을 부여하려면 해당 사용자가 회원가입한 뒤 DB의 `users.role`을 `admin`으로 변경해야 합니다.
-- 모든 업무 API는 서버에서 `admin` 권한을 재검증하므로 화면을 우회해도 명단·출석 데이터에 접근할 수 없습니다.
-- 비밀번호는 솔트를 붙여 `scrypt`로 해시된 값만 저장되며, 세션은 `JWT_SECRET`으로 서명한 쿠키로 관리됩니다.
+- 지금은 로그인 화면이 없고 모든 화면과 API가 열려 있습니다. 서기·임원이 소수 인원으로 로컬/사내망에서만 접속하는 초기 단계를 전제로 한 결정입니다.
+- 외부에 공개하거나 사용자가 늘어나면 아이디/비밀번호 로그인과 `admin` 권한 검증을 다시 추가해야 합니다. 이전에 구현했던 버전이 git 히스토리(커밋 `ca3a02b`)에 남아 있어 참고해 되살릴 수 있습니다.
 
 ## 데이터 모델
 
@@ -36,8 +34,7 @@
 | `church_groups` | 기수/부서 | `code`, `name` |
 | `members` | 회원 명단 | `name`, `groupId`, `phone`, `status`, `joinedAt` |
 | `attendance_weeks` | 예배 주차 | `serviceDate` |
-| `attendance` | 회원별 출석 기록 | `weekId`, `memberId`, `attended`, `recordedBy` |
-| `users` | 로그인 사용자 및 역할 | `username`, `passwordHash`, `email`, `role` |
+| `attendance` | 회원별 출석 기록 | `weekId`, `memberId`, `attended` |
 
 출석 기록은 `(weekId, memberId)` 조합으로 유일하게 관리되어, 같은 주차에 저장을 반복해도 중복 행이 생기지 않습니다.
 
@@ -70,7 +67,7 @@ Supabase 프로젝트를 준비하면 다음 순서로 전환합니다.
    ```
    docker compose up -d
    ```
-2. `.env.example`을 복사해 `.env`를 만들고 값을 채웁니다. `DATABASE_URL`은 위 `docker-compose.yml` 기준으로 `mysql://root:church_member_dev@localhost:3306/church_member`이고, `JWT_SECRET`은 `openssl rand -hex 32` 등으로 생성한 임의 문자열을 넣습니다.
+2. `.env.example`을 복사해 `.env`를 만들고 `DATABASE_URL`을 채웁니다. 위 `docker-compose.yml` 기준으로는 `mysql://root:church_member_dev@localhost:3306/church_member`입니다.
    ```
    cp .env.example .env
    ```
@@ -82,7 +79,7 @@ Supabase 프로젝트를 준비하면 다음 순서로 전환합니다.
    ```
    pnpm dev
    ```
-5. `http://localhost:3000`에서 회원가입하면 첫 계정이 자동으로 `admin`이 됩니다.
+5. `http://localhost:3000`에서 바로 사용할 수 있습니다 (로그인 없음).
 
 ## 검증 결과
 
