@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { ChevronDown, Plus, Search, UserRoundPlus, UsersRound } from "lucide-react";
+import { ChevronDown, Plus, Search, Trash2, UserRoundPlus, UsersRound } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -191,9 +191,14 @@ function MemberDetailDialog({ member, onClose, onSaved }: { member: Member; onCl
   const [gender, setGender] = useState<Gender | "">(member.gender ?? "");
   const [phone, setPhone] = useState(member.phone ?? "");
   const [status, setStatus] = useState<Status>(member.status);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const updateMember = trpc.members.update.useMutation({
     onSuccess: () => { toast.success("회원 정보를 수정했습니다."); onSaved(); },
+    onError: error => toast.error(error.message),
+  });
+  const deleteMember = trpc.members.delete.useMutation({
+    onSuccess: () => { toast.success(`${member.name} 회원을 삭제했습니다.`); onSaved(); },
     onError: error => toast.error(error.message),
   });
 
@@ -241,10 +246,23 @@ function MemberDetailDialog({ member, onClose, onSaved }: { member: Member; onCl
               <option value="transferred">전출</option>
             </select>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} className="h-11 rounded-xl">취소</Button>
-            <Button type="submit" disabled={updateMember.isPending} className="h-11 rounded-xl bg-[#214e3b] hover:bg-[#173a2b]">{updateMember.isPending ? "저장 중" : "저장"}</Button>
-          </DialogFooter>
+          {confirmingDelete ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+              <p className="text-sm font-semibold text-red-700">{member.name} 회원을 삭제할까요? 출석 기록도 함께 삭제되며 되돌릴 수 없습니다.</p>
+              <div className="mt-3 flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setConfirmingDelete(false)} className="h-9 rounded-lg">취소</Button>
+                <Button type="button" onClick={() => deleteMember.mutate({ id: member.id })} disabled={deleteMember.isPending} className="h-9 rounded-lg bg-red-600 hover:bg-red-700">{deleteMember.isPending ? "삭제 중" : "삭제"}</Button>
+              </div>
+            </div>
+          ) : (
+            <DialogFooter className="sm:justify-between">
+              <Button type="button" variant="outline" onClick={() => setConfirmingDelete(true)} className="h-11 rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"><Trash2 className="mr-2 h-4 w-4" />삭제</Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={onClose} className="h-11 rounded-xl">취소</Button>
+                <Button type="submit" disabled={updateMember.isPending} className="h-11 rounded-xl bg-[#214e3b] hover:bg-[#173a2b]">{updateMember.isPending ? "저장 중" : "저장"}</Button>
+              </div>
+            </DialogFooter>
+          )}
         </form>
       </DialogContent>
     </Dialog>

@@ -35,6 +35,11 @@ export async function createMember(input: {
   return result[0]!;
 }
 
+export async function deleteMember(id: number) {
+  const db = await requireDb();
+  await db.delete(members).where(eq(members.id, id));
+}
+
 export async function updateMember(input: {
   id: number;
   name: string;

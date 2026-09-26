@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   createMember,
+  deleteMember,
   getAnalyticsOverview,
   getDashboardSummary,
   getWeeklyAttendance,
@@ -30,6 +31,9 @@ export const appRouter = router({
     update: publicProcedure
       .input(z.object({ id: z.number().int().positive(), ...memberFields }))
       .mutation(({ input }) => updateMember(input)),
+    delete: publicProcedure
+      .input(z.object({ id: z.number().int().positive() }))
+      .mutation(({ input }) => deleteMember(input.id)),
   }),
   attendance: router({
     getWeek: publicProcedure.input(z.object({ serviceDate })).query(({ input }) => getWeeklyAttendance(input.serviceDate)),
