@@ -20,10 +20,10 @@ describe("input validation", () => {
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
-  it("rejects an empty group code", async () => {
+  it("rejects an out-of-range cohort number", async () => {
     const caller = appRouter.createCaller(createContext());
-    await expect(caller.groups.create({ code: "", name: "07기" })).rejects.toMatchObject({
-      code: "BAD_REQUEST",
-    });
+    await expect(
+      caller.members.create({ name: "홍길동", status: "active", cohort: 0 }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });

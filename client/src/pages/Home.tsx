@@ -38,7 +38,7 @@ export default function Home() {
       {!hasData && !isLoading ? (
         <section className="rounded-[1.7rem] border border-dashed border-[#cfcbbf] bg-[#fbfaf7] p-6 sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div><p className="text-sm font-bold text-[#b66b3d]">첫 출석부를 시작해 보세요</p><h2 className="mt-1 text-xl font-bold tracking-tight text-stone-800">기수(부서)를 만들고 회원을 등록하면 준비가 끝납니다.</h2><p className="mt-2 text-sm text-stone-500">등록한 회원은 기수별로 자동 정리되어 출석 화면에 표시됩니다.</p></div>
+            <div><p className="text-sm font-bold text-[#b66b3d]">첫 출석부를 시작해 보세요</p><h2 className="mt-1 text-xl font-bold tracking-tight text-stone-800">회원을 등록하면 준비가 끝납니다.</h2><p className="mt-2 text-sm text-stone-500">등록한 회원은 기수별로 자동 정리되어 출석 화면에 표시됩니다.</p></div>
             <Button onClick={() => setLocation("/members")} className="h-11 shrink-0 rounded-xl bg-[#214e3b] hover:bg-[#173a2b]"><UserRoundPlus className="mr-2 h-4 w-4" />회원 등록하기</Button>
           </div>
         </section>

@@ -1,11 +1,6 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import {
-  attendance,
-  attendanceWeeks,
-  churchGroups,
-  members,
-} from "../drizzle/schema";
+import { attendance, attendanceWeeks, members } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -22,48 +17,17 @@ async function requireDb() {
   return db;
 }
 
-export async function listGroups() {
+export async function listMembers() {
   const db = await requireDb();
-  return db.select().from(churchGroups).orderBy(churchGroups.name);
-}
-
-export async function createGroup(input: { code: string; name: string }) {
-  const db = await requireDb();
-  await db
-    .insert(churchGroups)
-    .values(input)
-    .onDuplicateKeyUpdate({ set: { name: input.name } });
-  const result = await db
-    .select()
-    .from(churchGroups)
-    .where(eq(churchGroups.code, input.code))
-    .limit(1);
-  return result[0]!;
-}
-
-export async function listMembersWithGroups() {
-  const db = await requireDb();
-  return db
-    .select({
-      id: members.id,
-      name: members.name,
-      phone: members.phone,
-      status: members.status,
-      joinedAt: members.joinedAt,
-      groupId: churchGroups.id,
-      groupCode: churchGroups.code,
-      groupName: churchGroups.name,
-    })
-    .from(members)
-    .leftJoin(churchGroups, eq(members.groupId, churchGroups.id))
-    .orderBy(churchGroups.name, members.name);
+  return db.select().from(members).orderBy(members.cohort, members.name);
 }
 
 export async function createMember(input: {
   name: string;
   phone?: string | null;
   status: "active" | "dormant" | "transferred" | "new";
-  groupId: number;
+  cohort: number;
+  gender?: "male" | "female" | null;
 }) {
   const db = await requireDb();
   await db.insert(members).values(input);
@@ -101,19 +65,17 @@ export async function getWeeklyAttendance(serviceDate: string) {
       name: members.name,
       phone: members.phone,
       status: members.status,
-      groupId: churchGroups.id,
-      groupCode: churchGroups.code,
-      groupName: churchGroups.name,
+      cohort: members.cohort,
+      gender: members.gender,
       attended: attendance.attended,
     })
     .from(members)
-    .leftJoin(churchGroups, eq(members.groupId, churchGroups.id))
     .leftJoin(
       attendance,
       and(eq(attendance.memberId, members.id), eq(attendance.weekId, week?.id ?? 0)),
     )
     .where(inArray(members.status, [...attendingStatuses]))
-    .orderBy(churchGroups.name, members.name);
+    .orderBy(members.cohort, members.name);
 
   return {
     week,
@@ -180,7 +142,6 @@ export async function getDashboardSummary() {
 
 export async function getAnalyticsOverview() {
   const db = await requireDb();
-  const groups = await listGroups();
   const [active] = await db
     .select({ value: count() })
     .from(members)
@@ -211,37 +172,37 @@ export async function getAnalyticsOverview() {
   );
 
   const latestWeek = weeks[0];
-  const groupRates = await Promise.all(
-    groups.map(async group => {
-      const [total] = await db
-        .select({ value: count() })
-        .from(members)
-        .where(and(eq(members.groupId, group.id), inArray(members.status, [...attendingStatuses])));
-      const memberTotal = Number(total?.value ?? 0);
-      let presentCount = 0;
-      if (latestWeek) {
-        const [present] = await db
-          .select({ value: count() })
-          .from(attendance)
-          .innerJoin(members, eq(attendance.memberId, members.id))
-          .where(
-            and(
-              eq(attendance.weekId, latestWeek.id),
-              eq(attendance.attended, true),
-              eq(members.groupId, group.id),
-            ),
-          );
-        presentCount = Number(present?.value ?? 0);
-      }
+
+  const cohortTotals = await db
+    .select({ cohort: members.cohort, total: count() })
+    .from(members)
+    .where(inArray(members.status, [...attendingStatuses]))
+    .groupBy(members.cohort);
+
+  const cohortPresent = new Map<number, number>();
+  if (latestWeek) {
+    const presentRows = await db
+      .select({ cohort: members.cohort, present: count() })
+      .from(attendance)
+      .innerJoin(members, eq(attendance.memberId, members.id))
+      .where(and(eq(attendance.weekId, latestWeek.id), eq(attendance.attended, true)))
+      .groupBy(members.cohort);
+    for (const row of presentRows) cohortPresent.set(row.cohort, Number(row.present));
+  }
+
+  const groupRates = cohortTotals
+    .map(row => {
+      const memberTotal = Number(row.total);
+      const presentCount = cohortPresent.get(row.cohort) ?? 0;
       return {
-        groupId: group.id,
-        group: group.name,
+        cohort: row.cohort,
+        group: `${row.cohort}기`,
         total: memberTotal,
         present: presentCount,
         rate: memberTotal ? Math.round((presentCount / memberTotal) * 100) : 0,
       };
-    }),
-  );
+    })
+    .sort((a, b) => a.cohort - b.cohort);
 
   return { totalMembers, trend, groupRates, latestDate: latestWeek?.serviceDate ?? null };
 }

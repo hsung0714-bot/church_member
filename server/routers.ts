@@ -1,12 +1,10 @@
 import { z } from "zod";
 import {
-  createGroup,
   createMember,
   getAnalyticsOverview,
   getDashboardSummary,
   getWeeklyAttendance,
-  listGroups,
-  listMembersWithGroups,
+  listMembers,
   saveWeeklyAttendance,
 } from "./db";
 import { publicProcedure, router } from "./_core/trpc";
@@ -17,21 +15,16 @@ export const appRouter = router({
   dashboard: router({
     summary: publicProcedure.query(() => getDashboardSummary()),
   }),
-  groups: router({
-    list: publicProcedure.query(() => listGroups()),
-    create: publicProcedure
-      .input(z.object({ code: z.string().trim().min(1).max(32), name: z.string().trim().min(1).max(80) }))
-      .mutation(({ input }) => createGroup(input)),
-  }),
   members: router({
-    list: publicProcedure.query(() => listMembersWithGroups()),
+    list: publicProcedure.query(() => listMembers()),
     create: publicProcedure
       .input(
         z.object({
           name: z.string().trim().min(1).max(80),
           phone: z.string().trim().max(32).nullable().optional(),
           status: z.enum(["active", "dormant", "transferred", "new"]),
-          groupId: z.number().int().positive(),
+          cohort: z.number().int().min(1).max(99),
+          gender: z.enum(["male", "female"]).nullable().optional(),
         }),
       )
       .mutation(({ input }) => createMember(input)),

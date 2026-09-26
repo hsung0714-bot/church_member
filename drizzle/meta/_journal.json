@@ -29,6 +29,13 @@
       "when": 1790435723229,
       "tag": "0003_special_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1790438797843,
+      "tag": "0004_neat_blindfold",
+      "breakpoints": true
     }
   ]
 }

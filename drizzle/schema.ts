@@ -10,23 +10,13 @@ import {
   varchar,
 } from "drizzle-orm/mysql-core";
 
-export const churchGroups = mysqlTable(
-  "church_groups",
-  {
-    id: int("id").autoincrement().primaryKey(),
-    code: varchar("code", { length: 32 }).notNull(),
-    name: varchar("name", { length: 80 }).notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-  },
-  table => [uniqueIndex("church_groups_code_unique").on(table.code)],
-);
-
 export const members = mysqlTable(
   "members",
   {
     id: int("id").autoincrement().primaryKey(),
     name: varchar("name", { length: 80 }).notNull(),
-    groupId: int("groupId").references(() => churchGroups.id),
+    cohort: int("cohort").notNull(),
+    gender: mysqlEnum("gender", ["male", "female"]),
     phone: varchar("phone", { length: 32 }),
     status: mysqlEnum("status", ["active", "dormant", "transferred", "new"])
       .default("active")
@@ -35,7 +25,7 @@ export const members = mysqlTable(
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
-  table => [index("members_group_idx").on(table.groupId), index("members_status_idx").on(table.status)],
+  table => [index("members_cohort_idx").on(table.cohort), index("members_status_idx").on(table.status)],
 );
 
 export const attendanceWeeks = mysqlTable(
@@ -68,7 +58,6 @@ export const attendance = mysqlTable(
   ],
 );
 
-export type ChurchGroup = typeof churchGroups.$inferSelect;
 export type Member = typeof members.$inferSelect;
 export type AttendanceWeek = typeof attendanceWeeks.$inferSelect;
 export type AttendanceRecord = typeof attendance.$inferSelect;
