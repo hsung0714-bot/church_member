@@ -6,10 +6,10 @@ function createNonAdminContext(): TrpcContext {
   return {
     user: {
       id: 42,
-      openId: "ordinary-member",
+      username: "ordinary-member",
+      passwordHash: "irrelevant",
       email: "member@example.com",
       name: "Ordinary Member",
-      loginMethod: "manus",
       role: "user",
       createdAt: new Date(),
       updatedAt: new Date(),

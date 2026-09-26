@@ -20,11 +20,11 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { BarChart3, CalendarCheck2, ChevronRight, LayoutDashboard, LogOut, PanelLeft, UsersRound } from "lucide-react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
+import LoginForm from "./LoginForm";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "현황", path: "/" },
@@ -44,7 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <p className="text-sm font-medium text-[#b66b3d]">서기 · 임원 전용</p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-stone-900">함께 출석관리</h1>
           <p className="mt-3 text-sm leading-6 text-stone-500">교회 회원과 예배 출석 정보를 안전하게 관리하려면 로그인해 주세요.</p>
-          <Button onClick={() => startLogin()} className="mt-7 h-12 w-full rounded-xl bg-[#214e3b] hover:bg-[#173a2b]">관리자 로그인</Button>
+          <LoginForm />
         </section>
       </main>
     );

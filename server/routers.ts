@@ -1,19 +1,28 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { createSessionToken, hashPassword, verifyPassword } from "./_core/auth";
 import {
+  countUsers,
   createGroup,
   createMember,
+  createUser,
   getAnalyticsOverview,
   getDashboardSummary,
+  getUserByUsername,
   getWeeklyAttendance,
   listGroups,
   listMembersWithGroups,
   saveWeeklyAttendance,
+  touchLastSignedIn,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+
+const credentials = z.object({
+  username: z.string().trim().min(3).max(64),
+  password: z.string().min(8).max(200),
+});
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") {
@@ -24,10 +33,51 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 
 const serviceDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "날짜 형식이 올바르지 않습니다.");
 
+function toPublicUser<T extends { passwordHash: string }>(user: T) {
+  const { passwordHash: _passwordHash, ...publicUser } = user;
+  return publicUser;
+}
+
 export const appRouter = router({
-  system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(opts => (opts.ctx.user ? toPublicUser(opts.ctx.user) : null)),
+    register: publicProcedure.input(credentials.extend({ name: z.string().trim().max(80).optional() })).mutation(async ({ ctx, input }) => {
+      const existing = await getUserByUsername(input.username);
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "이미 사용 중인 아이디입니다." });
+      }
+
+      const isFirstUser = (await countUsers()) === 0;
+      const passwordHash = await hashPassword(input.password);
+      const user = await createUser({
+        username: input.username,
+        passwordHash,
+        name: input.name ?? null,
+        role: isFirstUser ? "admin" : "user",
+      });
+
+      const sessionToken = await createSessionToken(user.id);
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      return toPublicUser(user);
+    }),
+    login: publicProcedure.input(credentials).mutation(async ({ ctx, input }) => {
+      const user = await getUserByUsername(input.username);
+      const invalidCredentialsError = new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "아이디 또는 비밀번호가 올바르지 않습니다.",
+      });
+      if (!user) throw invalidCredentialsError;
+
+      const passwordOk = await verifyPassword(input.password, user.passwordHash);
+      if (!passwordOk) throw invalidCredentialsError;
+
+      await touchLastSignedIn(user.id);
+      const sessionToken = await createSessionToken(user.id);
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      return toPublicUser(user);
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

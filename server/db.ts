@@ -4,11 +4,9 @@ import {
   attendance,
   attendanceWeeks,
   churchGroups,
-  InsertUser,
   members,
   users,
 } from "../drizzle/schema";
-import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -25,34 +23,41 @@ async function requireDb() {
   return db;
 }
 
-export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) throw new Error("User openId is required for upsert");
-  const db = await getDb();
-  if (!db) return;
-
-  const values: InsertUser = { openId: user.openId, lastSignedIn: new Date() };
-  const updateSet: Record<string, unknown> = { lastSignedIn: new Date() };
-  for (const field of ["name", "email", "loginMethod"] as const) {
-    if (user[field] !== undefined) {
-      values[field] = user[field] ?? null;
-      updateSet[field] = user[field] ?? null;
-    }
-  }
-  if (user.role !== undefined) {
-    values.role = user.role;
-    updateSet.role = user.role;
-  } else if (user.openId === ENV.ownerOpenId) {
-    values.role = "admin";
-    updateSet.role = "admin";
-  }
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
-}
-
-export async function getUserByOpenId(openId: string) {
+export async function getUserById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
   return result[0];
+}
+
+export async function getUserByUsername(username: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+  return result[0];
+}
+
+export async function countUsers(): Promise<number> {
+  const db = await requireDb();
+  const [row] = await db.select({ value: count() }).from(users);
+  return Number(row?.value ?? 0);
+}
+
+export async function createUser(input: {
+  username: string;
+  passwordHash: string;
+  name?: string | null;
+  role: "user" | "admin";
+}) {
+  const db = await requireDb();
+  await db.insert(users).values({ ...input, lastSignedIn: new Date() });
+  const result = await db.select().from(users).where(eq(users.username, input.username)).limit(1);
+  return result[0]!;
+}
+
+export async function touchLastSignedIn(id: number): Promise<void> {
+  const db = await requireDb();
+  await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, id));
 }
 
 export async function listGroups() {
