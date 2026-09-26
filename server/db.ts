@@ -270,6 +270,7 @@ export async function getAnalyticsOverview() {
         presentCount = Number(present?.value ?? 0);
       }
       return {
+        groupId: group.id,
         group: group.name,
         total: memberTotal,
         present: presentCount,
