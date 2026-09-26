@@ -51,7 +51,7 @@ export default function Attendance() {
         <DatePicker label="예배일" value={serviceDate} onChange={value => { loadedFor.current = ""; setServiceDate(value); }} />
       </header>
 
-      <section className="mt-6 overflow-hidden rounded-[1.6rem] bg-[#214e3b] text-white"><div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div><p className="text-sm font-semibold text-[#c9dbbd]">{displayDate(serviceDate)}</p><p className="mt-1 text-3xl font-extrabold">{isLoading ? "불러오는 중" : `${presentCount} / ${total}명`}</p><p className="mt-1 text-xs text-[#d7e3d2]">현재 체크 기준 출석 인원</p></div><div className="flex gap-2"><Button variant="secondary" onClick={() => markVisible(true)} disabled={!visibleMembers.length} className="h-10 rounded-xl bg-white/15 px-4 text-white hover:bg-white/25"><CheckCheck className="mr-2 h-4 w-4" />전체 출석</Button><Button variant="secondary" onClick={() => markVisible(false)} disabled={!visibleMembers.length} className="h-10 rounded-xl bg-white/15 px-4 text-white hover:bg-white/25"><RotateCcw className="mr-2 h-4 w-4" />전체 해제</Button></div></div></section>
+      <section className="mt-4 overflow-hidden rounded-2xl bg-[#214e3b] text-white"><div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 sm:px-5"><p className="text-lg font-extrabold">{isLoading ? "불러오는 중" : `${presentCount} / ${total}명`}</p><p className="text-xs text-[#c9dbbd]">{displayDate(serviceDate)} · 현재 체크 기준</p><div className="ml-auto flex gap-2"><Button variant="secondary" onClick={() => markVisible(true)} disabled={!visibleMembers.length} className="h-8 rounded-lg bg-white/15 px-3 text-xs text-white hover:bg-white/25"><CheckCheck className="mr-1.5 h-3.5 w-3.5" />전체 출석</Button><Button variant="secondary" onClick={() => markVisible(false)} disabled={!visibleMembers.length} className="h-8 rounded-lg bg-white/15 px-3 text-xs text-white hover:bg-white/25"><RotateCcw className="mr-1.5 h-3.5 w-3.5" />전체 해제</Button></div></div></section>
 
       <section className="mt-5 rounded-[1.6rem] border border-[#e7e4dc] bg-white shadow-[0_8px_25px_rgba(68,62,48,0.04)]"><div className="border-b border-[#efede7] p-4 sm:p-5"><div className="relative"><Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="이름 또는 기수 검색" className="h-12 w-full rounded-xl bg-[#f7f6f1] pl-11 pr-4 text-sm outline-none ring-[#214e3b] placeholder:text-stone-400 focus:ring-2" /></div></div>
         {isLoading ? (
@@ -61,7 +61,7 @@ export default function Attendance() {
         ) : !visibleMembers.length ? (
           <div className="p-10 text-center text-sm text-stone-400">검색 결과가 없습니다.</div>
         ) : (
-          <div className="columns-2 gap-x-3 p-4 sm:p-5 lg:columns-3">
+          <div className="columns-1 gap-x-3 p-4 sm:columns-2 sm:p-5 lg:columns-3">
             {visibleMembers.map((member, index) => {
               const attended = draft[member.id] ?? member.attended;
               const nextCohort = visibleMembers[index + 1]?.cohort;
@@ -70,16 +70,16 @@ export default function Attendance() {
                 <button
                   key={member.id}
                   onClick={() => setDraft(current => ({ ...current, [member.id]: !(current[member.id] ?? member.attended) }))}
-                  className={`flex h-11 w-full break-inside-avoid items-center gap-2 rounded-lg border px-2 text-sm transition active:scale-95 ${isCohortBoundary ? "mb-3.5" : "mb-1.5"} ${
+                  className={`flex h-14 w-full break-inside-avoid items-center gap-2.5 rounded-xl border px-3 transition active:scale-95 ${isCohortBoundary ? "mb-6" : "mb-2"} ${
                     attended
                       ? "border-[#2d6a4f] bg-[#e8f0e8] text-[#214e3b]"
                       : "border-[#e0ddd3] bg-white text-stone-500 hover:border-[#c9c4b6]"
                   }`}
                 >
-                  <span className="w-8 shrink-0 text-xs font-bold text-stone-400">{member.cohort}기</span>
-                  <span className="min-w-0 flex-1 truncate text-left text-base font-semibold">{member.name}</span>
-                  <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full ${attended ? "bg-[#2d6a4f] text-white" : "border border-[#c9c4b6] bg-transparent"}`}>
-                    {attended && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                  <span className="w-9 shrink-0 text-sm font-extrabold text-stone-400">{member.cohort}기</span>
+                  <span className="min-w-0 flex-1 truncate text-left text-xl font-extrabold">{member.name}</span>
+                  <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${attended ? "bg-[#2d6a4f] text-white" : "border border-[#c9c4b6] bg-transparent"}`}>
+                    {attended && <Check className="h-4 w-4" strokeWidth={3} />}
                   </span>
                 </button>
               );
