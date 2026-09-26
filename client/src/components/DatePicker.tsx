@@ -43,7 +43,7 @@ export default function DatePicker({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex h-12 items-center gap-2.5 rounded-xl border border-[#dcd8ce] bg-white px-4 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-[#b7cbb2]"
+          className="flex h-12 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-xl border border-[#dcd8ce] bg-white px-4 text-sm font-semibold text-stone-700 shadow-sm transition hover:border-[#b7cbb2]"
         >
           <CalendarDays className="h-4 w-4 shrink-0 text-[#214e3b]" />
           <span className="text-stone-400">{label}</span>
