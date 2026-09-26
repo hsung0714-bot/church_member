@@ -79,14 +79,14 @@ function CohortChips({ cohort, members, draft, onToggle }: { cohort: number; mem
         <ChevronDown className={`h-4 w-4 text-stone-400 transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="flex flex-wrap gap-2 p-4 sm:p-5">
+        <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3 sm:p-5">
           {members.map(member => {
             const attended = draft[member.id] ?? member.attended;
             return (
               <button
                 key={member.id}
                 onClick={() => onToggle(member.id)}
-                className={`inline-flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold transition active:scale-95 ${
+                className={`flex h-11 w-full items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition active:scale-95 ${
                   attended
                     ? "border-[#2d6a4f] bg-[#e8f0e8] text-[#214e3b]"
                     : "border-[#e0ddd3] bg-white text-stone-500 hover:border-[#c9c4b6]"
@@ -95,7 +95,7 @@ function CohortChips({ cohort, members, draft, onToggle }: { cohort: number; mem
                 <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${attended ? "bg-[#2d6a4f] text-white" : "border border-[#c9c4b6] bg-transparent"}`}>
                   {attended && <Check className="h-3 w-3" strokeWidth={3} />}
                 </span>
-                {member.name}
+                <span className="truncate">{member.name}</span>
               </button>
             );
           })}
