@@ -1,3 +1,4 @@
+import DatePicker from "@/components/DatePicker";
 import { trpc } from "@/lib/trpc";
 import { CalendarDays, LineChart as LineChartIcon, RotateCcw, UsersRound } from "lucide-react";
 import { useState } from "react";
@@ -36,14 +37,8 @@ export default function Analytics() {
       </section>
 
       <section className="flex flex-wrap items-end gap-3 rounded-[1.6rem] border border-[#e7e4dc] bg-white p-4 sm:p-5">
-        <label className="flex h-11 items-center gap-2 rounded-xl border border-[#dcd8ce] bg-white px-3 text-sm font-semibold text-stone-700">
-          <span className="text-stone-400">시작일</span>
-          <input aria-label="시작일" type="date" value={from} onChange={event => setFrom(event.target.value)} max={to || undefined} className="bg-transparent outline-none" />
-        </label>
-        <label className="flex h-11 items-center gap-2 rounded-xl border border-[#dcd8ce] bg-white px-3 text-sm font-semibold text-stone-700">
-          <span className="text-stone-400">종료일</span>
-          <input aria-label="종료일" type="date" value={to} onChange={event => setTo(event.target.value)} min={from || undefined} className="bg-transparent outline-none" />
-        </label>
+        <DatePicker label="시작일" value={from} onChange={setFrom} max={to || undefined} placeholder="전체 기간" />
+        <DatePicker label="종료일" value={to} onChange={setTo} min={from || undefined} placeholder="오늘까지" />
         {hasRange && (
           <button onClick={() => { setFrom(""); setTo(""); }} className="flex h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-stone-500 hover:bg-[#f7f6f1]">
             <RotateCcw className="h-4 w-4" />최근 8주로

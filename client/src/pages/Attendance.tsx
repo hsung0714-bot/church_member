@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import DatePicker from "@/components/DatePicker";
 import { trpc } from "@/lib/trpc";
 import { Check, CheckCheck, ChevronDown, RotateCcw, Save, Search, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -54,7 +55,7 @@ export default function Attendance() {
     <div className="pb-24 sm:pb-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="text-xs font-bold tracking-[0.14em] text-[#b66b3d]">WEEKLY ATTENDANCE</p><h1 className="mt-1 text-2xl font-extrabold tracking-tight text-stone-800 sm:text-3xl">주차별 출석 체크</h1><p className="mt-2 text-sm text-stone-500">이름 칩을 눌러 출석 상태를 바꾸고, 저장 버튼으로 한 번에 반영하세요.</p></div>
-        <label className="flex h-12 items-center gap-3 rounded-xl border border-[#dcd8ce] bg-white px-4 text-sm font-semibold text-stone-700 shadow-sm"><span className="text-stone-400">예배일</span><input aria-label="예배일 선택" type="date" value={serviceDate} onChange={event => { loadedFor.current = ""; setServiceDate(event.target.value); }} className="bg-transparent outline-none" /></label>
+        <DatePicker label="예배일" value={serviceDate} onChange={value => { loadedFor.current = ""; setServiceDate(value); }} />
       </header>
 
       <section className="mt-6 overflow-hidden rounded-[1.6rem] bg-[#214e3b] text-white"><div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div><p className="text-sm font-semibold text-[#c9dbbd]">{displayDate(serviceDate)}</p><p className="mt-1 text-3xl font-extrabold">{isLoading ? "불러오는 중" : `${presentCount} / ${total}명`}</p><p className="mt-1 text-xs text-[#d7e3d2]">현재 체크 기준 출석 인원</p></div><div className="flex gap-2"><Button variant="secondary" onClick={() => markVisible(true)} disabled={!visibleMembers.length} className="h-10 rounded-xl bg-white/15 px-4 text-white hover:bg-white/25"><CheckCheck className="mr-2 h-4 w-4" />전체 출석</Button><Button variant="secondary" onClick={() => markVisible(false)} disabled={!visibleMembers.length} className="h-10 rounded-xl bg-white/15 px-4 text-white hover:bg-white/25"><RotateCcw className="mr-2 h-4 w-4" />전체 해제</Button></div></div></section>
