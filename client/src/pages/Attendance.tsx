@@ -61,24 +61,25 @@ export default function Attendance() {
         ) : !visibleMembers.length ? (
           <div className="p-10 text-center text-sm text-stone-400">검색 결과가 없습니다.</div>
         ) : (
-          <div className="columns-2 gap-x-3 p-4 sm:p-5 lg:columns-3 xl:columns-4">
+          <div className="columns-2 gap-x-3 p-4 sm:p-5 lg:columns-3">
             {visibleMembers.map((member, index) => {
               const attended = draft[member.id] ?? member.attended;
+              const nextCohort = visibleMembers[index + 1]?.cohort;
+              const isCohortBoundary = nextCohort !== undefined && nextCohort !== member.cohort;
               return (
                 <button
                   key={member.id}
                   onClick={() => setDraft(current => ({ ...current, [member.id]: !(current[member.id] ?? member.attended) }))}
-                  className={`mb-1.5 flex h-9 w-full break-inside-avoid items-center gap-1 rounded-lg border px-1.5 text-xs transition active:scale-95 ${
+                  className={`flex h-11 w-full break-inside-avoid items-center gap-2 rounded-lg border px-2 text-sm transition active:scale-95 ${isCohortBoundary ? "mb-3.5" : "mb-1.5"} ${
                     attended
                       ? "border-[#2d6a4f] bg-[#e8f0e8] text-[#214e3b]"
                       : "border-[#e0ddd3] bg-white text-stone-500 hover:border-[#c9c4b6]"
                   }`}
                 >
-                  <span className="w-4 shrink-0 text-right text-[10px] text-stone-400">{index + 1}</span>
-                  <span className="w-6 shrink-0 text-[10px] font-bold text-stone-400">{member.cohort}기</span>
-                  <span className="min-w-0 flex-1 truncate text-left font-semibold">{member.name}</span>
-                  <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${attended ? "bg-[#2d6a4f] text-white" : "border border-[#c9c4b6] bg-transparent"}`}>
-                    {attended && <Check className="h-3 w-3" strokeWidth={3} />}
+                  <span className="w-8 shrink-0 text-xs font-bold text-stone-400">{member.cohort}기</span>
+                  <span className="min-w-0 flex-1 truncate text-left text-base font-semibold">{member.name}</span>
+                  <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full ${attended ? "bg-[#2d6a4f] text-white" : "border border-[#c9c4b6] bg-transparent"}`}>
+                    {attended && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                   </span>
                 </button>
               );
