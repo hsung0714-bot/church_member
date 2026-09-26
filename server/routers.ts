@@ -17,7 +17,7 @@ const memberFields = {
   name: z.string().trim().min(1).max(80),
   phone: z.string().trim().max(32).nullable().optional(),
   status: z.enum(["active", "dormant", "transferred", "new"]),
-  cohort: z.number().int().min(1).max(99),
+  cohort: z.number().int().min(1).max(99).nullable().optional(),
   gender: z.enum(["male", "female"]).nullable().optional(),
 };
 

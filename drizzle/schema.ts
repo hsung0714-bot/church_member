@@ -15,7 +15,7 @@ export const members = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     name: varchar("name", { length: 80 }).notNull(),
-    cohort: int("cohort").notNull(),
+    cohort: int("cohort"),
     gender: mysqlEnum("gender", ["male", "female"]),
     phone: varchar("phone", { length: 32 }),
     status: mysqlEnum("status", ["active", "dormant", "transferred", "new"])

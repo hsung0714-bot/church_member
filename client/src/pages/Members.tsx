@@ -9,7 +9,8 @@ const statusLabels = { active: "재적", new: "새가족", dormant: "휴면", tr
 type Status = keyof typeof statusLabels;
 const genderLabels = { male: "남", female: "여" } as const;
 type Gender = keyof typeof genderLabels;
-type Member = { id: number; name: string; phone: string | null; status: Status; cohort: number; gender: Gender | null };
+type Member = { id: number; name: string; phone: string | null; status: Status; cohort: number | null; gender: Gender | null };
+const cohortLabel = (cohort: number | null) => (cohort === null ? "미배정" : `${cohort}기`);
 
 export default function Members() {
   const utils = trpc.useUtils();
@@ -45,13 +46,17 @@ export default function Members() {
   });
 
   const filtered = useMemo(
-    () => members.filter(member => `${member.name} ${member.cohort}기`.toLowerCase().includes(search.toLowerCase())),
+    () => members.filter(member => `${member.name} ${cohortLabel(member.cohort)}`.toLowerCase().includes(search.toLowerCase())),
     [members, search],
   );
   const grouped = useMemo(() => {
-    const map = new Map<number, typeof filtered>();
+    const map = new Map<number | null, typeof filtered>();
     for (const member of filtered) map.set(member.cohort, [...(map.get(member.cohort) ?? []), member]);
-    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
+    return Array.from(map.entries()).sort((a, b) => {
+      if (a[0] === null) return 1;
+      if (b[0] === null) return -1;
+      return a[0] - b[0];
+    });
   }, [filtered]);
 
   const submitMember = (event: FormEvent) => {
@@ -156,7 +161,7 @@ function CohortGroup({
   members,
   onSelect,
 }: {
-  cohort: number;
+  cohort: number | null;
   members: Member[];
   onSelect: (member: Member) => void;
 }) {
@@ -164,7 +169,7 @@ function CohortGroup({
   return (
     <section>
       <button onClick={() => setOpen(value => !value)} className="flex w-full items-center justify-between bg-[#fcfbf8] px-5 py-3.5 text-left">
-        <span className="font-bold text-stone-700">{cohort}기 <span className="ml-1 text-xs font-medium text-stone-400">{members.length}명</span></span>
+        <span className="font-bold text-stone-700">{cohortLabel(cohort)} <span className="ml-1 text-xs font-medium text-stone-400">{members.length}명</span></span>
         <ChevronDown className={`h-4 w-4 text-stone-400 transition ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -187,7 +192,7 @@ function CohortGroup({
 
 function MemberDetailDialog({ member, onClose, onSaved }: { member: Member; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState(member.name);
-  const [cohort, setCohort] = useState(String(member.cohort));
+  const [cohort, setCohort] = useState(member.cohort !== null ? String(member.cohort) : "");
   const [gender, setGender] = useState<Gender | "">(member.gender ?? "");
   const [phone, setPhone] = useState(member.phone ?? "");
   const [status, setStatus] = useState<Status>(member.status);
@@ -204,9 +209,9 @@ function MemberDetailDialog({ member, onClose, onSaved }: { member: Member; onCl
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const cohortNumber = Number(cohort);
     if (!name.trim()) return toast.error("이름을 입력해 주세요.");
-    if (!cohort || !Number.isInteger(cohortNumber) || cohortNumber < 1) return toast.error("기수를 숫자로 입력해 주세요.");
+    const cohortNumber = cohort.trim() ? Number(cohort) : null;
+    if (cohortNumber !== null && (!Number.isInteger(cohortNumber) || cohortNumber < 1)) return toast.error("기수를 숫자로 입력해 주세요.");
     updateMember.mutate({ id: member.id, name: name.trim(), phone: phone.trim() || null, status, cohort: cohortNumber, gender: gender || null });
   };
 
@@ -222,7 +227,7 @@ function MemberDetailDialog({ member, onClose, onSaved }: { member: Member; onCl
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-stone-500">기수</label>
-              <input required type="number" min={1} max={99} value={cohort} onChange={event => setCohort(event.target.value)} className="h-11 w-full rounded-xl border border-[#d9d5cb] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#214e3b]" />
+              <input type="number" min={1} max={99} value={cohort} onChange={event => setCohort(event.target.value)} placeholder="미배정" className="h-11 w-full rounded-xl border border-[#d9d5cb] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#214e3b]" />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-stone-500">성별</label>

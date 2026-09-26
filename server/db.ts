@@ -19,14 +19,17 @@ async function requireDb() {
 
 export async function listMembers() {
   const db = await requireDb();
-  return db.select().from(members).orderBy(members.cohort, members.name);
+  return db
+    .select()
+    .from(members)
+    .orderBy(sql`${members.cohort} is null`, members.cohort, members.name);
 }
 
 export async function createMember(input: {
   name: string;
   phone?: string | null;
   status: "active" | "dormant" | "transferred" | "new";
-  cohort: number;
+  cohort?: number | null;
   gender?: "male" | "female" | null;
 }) {
   const db = await requireDb();
@@ -45,7 +48,7 @@ export async function updateMember(input: {
   name: string;
   phone?: string | null;
   status: "active" | "dormant" | "transferred" | "new";
-  cohort: number;
+  cohort?: number | null;
   gender?: "male" | "female" | null;
 }) {
   const db = await requireDb();
@@ -95,7 +98,7 @@ export async function getWeeklyAttendance(serviceDate: string) {
       and(eq(attendance.memberId, members.id), eq(attendance.weekId, week?.id ?? 0)),
     )
     .where(inArray(members.status, [...attendingStatuses]))
-    .orderBy(members.cohort, members.name);
+    .orderBy(sql`${members.cohort} is null`, members.cohort, members.name);
 
   return {
     week,
