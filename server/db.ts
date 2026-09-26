@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { attendance, attendanceWeeks, members } from "../drizzle/schema";
 
@@ -32,6 +32,21 @@ export async function createMember(input: {
   const db = await requireDb();
   await db.insert(members).values(input);
   const result = await db.select().from(members).orderBy(desc(members.id)).limit(1);
+  return result[0]!;
+}
+
+export async function updateMember(input: {
+  id: number;
+  name: string;
+  phone?: string | null;
+  status: "active" | "dormant" | "transferred" | "new";
+  cohort: number;
+  gender?: "male" | "female" | null;
+}) {
+  const db = await requireDb();
+  const { id, ...values } = input;
+  await db.update(members).set(values).where(eq(members.id, id));
+  const result = await db.select().from(members).where(eq(members.id, id)).limit(1);
   return result[0]!;
 }
 
@@ -140,69 +155,62 @@ export async function getDashboardSummary() {
   };
 }
 
-export async function getAnalyticsOverview() {
+export async function getAnalyticsOverview(range: { from?: string; to?: string } = {}) {
   const db = await requireDb();
   const [active] = await db
     .select({ value: count() })
     .from(members)
     .where(inArray(members.status, [...attendingStatuses]));
   const totalMembers = Number(active?.value ?? 0);
+
+  const hasRange = Boolean(range.from || range.to);
+  const dateConditions = [
+    range.from ? gte(attendanceWeeks.serviceDate, range.from) : undefined,
+    range.to ? lte(attendanceWeeks.serviceDate, range.to) : undefined,
+  ].filter((c): c is NonNullable<typeof c> => Boolean(c));
+
   const weeks = await db
     .select({ id: attendanceWeeks.id, serviceDate: attendanceWeeks.serviceDate })
     .from(attendanceWeeks)
     .innerJoin(attendance, eq(attendance.weekId, attendanceWeeks.id))
+    .where(dateConditions.length ? and(...dateConditions) : undefined)
     .groupBy(attendanceWeeks.id, attendanceWeeks.serviceDate)
     .orderBy(desc(attendanceWeeks.serviceDate))
-    .limit(8);
+    .limit(hasRange ? 500 : 8);
 
-  const trend = await Promise.all(
-    [...weeks].reverse().map(async week => {
-      const [present] = await db
-        .select({ value: count() })
+  const orderedWeeks = [...weeks].reverse();
+  const weekIds = orderedWeeks.map(week => week.id);
+
+  const genderRows = weekIds.length
+    ? await db
+        .select({ weekId: attendance.weekId, gender: members.gender, present: count() })
         .from(attendance)
-        .where(and(eq(attendance.weekId, week.id), eq(attendance.attended, true)));
-      const presentCount = Number(present?.value ?? 0);
-      return {
-        date: week.serviceDate.slice(5).replace("-", "/"),
-        fullDate: week.serviceDate,
-        present: presentCount,
-        rate: totalMembers ? Math.round((presentCount / totalMembers) * 100) : 0,
-      };
-    }),
-  );
+        .innerJoin(members, eq(attendance.memberId, members.id))
+        .where(and(eq(attendance.attended, true), inArray(attendance.weekId, weekIds)))
+        .groupBy(attendance.weekId, members.gender)
+    : [];
 
-  const latestWeek = weeks[0];
-
-  const cohortTotals = await db
-    .select({ cohort: members.cohort, total: count() })
-    .from(members)
-    .where(inArray(members.status, [...attendingStatuses]))
-    .groupBy(members.cohort);
-
-  const cohortPresent = new Map<number, number>();
-  if (latestWeek) {
-    const presentRows = await db
-      .select({ cohort: members.cohort, present: count() })
-      .from(attendance)
-      .innerJoin(members, eq(attendance.memberId, members.id))
-      .where(and(eq(attendance.weekId, latestWeek.id), eq(attendance.attended, true)))
-      .groupBy(members.cohort);
-    for (const row of presentRows) cohortPresent.set(row.cohort, Number(row.present));
+  const byWeek = new Map<number, { total: number; male: number; female: number }>();
+  for (const row of genderRows) {
+    const bucket = byWeek.get(row.weekId) ?? { total: 0, male: 0, female: 0 };
+    const value = Number(row.present);
+    bucket.total += value;
+    if (row.gender === "male") bucket.male += value;
+    else if (row.gender === "female") bucket.female += value;
+    byWeek.set(row.weekId, bucket);
   }
 
-  const groupRates = cohortTotals
-    .map(row => {
-      const memberTotal = Number(row.total);
-      const presentCount = cohortPresent.get(row.cohort) ?? 0;
-      return {
-        cohort: row.cohort,
-        group: `${row.cohort}기`,
-        total: memberTotal,
-        present: presentCount,
-        rate: memberTotal ? Math.round((presentCount / memberTotal) * 100) : 0,
-      };
-    })
-    .sort((a, b) => a.cohort - b.cohort);
+  const trend = orderedWeeks.map(week => {
+    const bucket = byWeek.get(week.id) ?? { total: 0, male: 0, female: 0 };
+    return {
+      date: week.serviceDate.slice(5).replace("-", "/"),
+      fullDate: week.serviceDate,
+      total: bucket.total,
+      male: bucket.male,
+      female: bucket.female,
+    };
+  });
 
-  return { totalMembers, trend, groupRates, latestDate: latestWeek?.serviceDate ?? null };
+  const latestWeek = orderedWeeks[orderedWeeks.length - 1];
+  return { totalMembers, trend, latestDate: latestWeek?.serviceDate ?? null };
 }

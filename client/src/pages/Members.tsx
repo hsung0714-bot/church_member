@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
 import { ChevronDown, Plus, Search, UserRoundPlus, UsersRound } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
@@ -8,6 +9,7 @@ const statusLabels = { active: "재적", new: "새가족", dormant: "휴면", tr
 type Status = keyof typeof statusLabels;
 const genderLabels = { male: "남", female: "여" } as const;
 type Gender = keyof typeof genderLabels;
+type Member = { id: number; name: string; phone: string | null; status: Status; cohort: number; gender: Gender | null };
 
 export default function Members() {
   const utils = trpc.useUtils();
@@ -19,6 +21,7 @@ export default function Members() {
   const [status, setStatus] = useState<Status>("active");
   const [cohort, setCohort] = useState("");
   const [gender, setGender] = useState<Gender | "">("");
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
 
   const refresh = async () => {
     await Promise.all([
@@ -71,7 +74,7 @@ export default function Members() {
         <div>
           <p className="text-xs font-bold tracking-[0.14em] text-[#b66b3d]">MEMBER DIRECTORY</p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-stone-800 sm:text-3xl">회원 명단</h1>
-          <p className="mt-2 text-sm text-stone-500">기수별로 회원을 관리합니다. 출석 대상은 재적·새가족 상태만 포함됩니다.</p>
+          <p className="mt-2 text-sm text-stone-500">기수별로 회원을 관리합니다. 이름을 누르면 상세 정보를 수정할 수 있습니다.</p>
         </div>
         <Button onClick={() => setShowMemberForm(value => !value)} className="h-11 rounded-xl bg-[#214e3b] hover:bg-[#173a2b]">
           <UserRoundPlus className="mr-2 h-4 w-4" />회원 등록
@@ -130,11 +133,20 @@ export default function Members() {
           <EmptyMembers onAdd={() => setShowMemberForm(true)} />
         ) : (
           <div className="divide-y divide-[#efede7]">
-            {grouped.map(([cohort, list]) => <CohortGroup key={cohort} cohort={cohort} members={list} />)}
+            {grouped.map(([cohort, list]) => <CohortGroup key={cohort} cohort={cohort} members={list} onSelect={setEditingMember} />)}
             {!grouped.length && <div className="p-10 text-center text-sm text-stone-400">검색 결과가 없습니다.</div>}
           </div>
         )}
       </section>
+
+      {editingMember && (
+        <MemberDetailDialog
+          key={editingMember.id}
+          member={editingMember}
+          onClose={() => setEditingMember(null)}
+          onSaved={async () => { setEditingMember(null); await refresh(); }}
+        />
+      )}
     </div>
   );
 }
@@ -142,9 +154,11 @@ export default function Members() {
 function CohortGroup({
   cohort,
   members,
+  onSelect,
 }: {
   cohort: number;
-  members: { id: number; name: string; phone: string | null; status: Status; gender: Gender | null }[];
+  members: Member[];
+  onSelect: (member: Member) => void;
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -156,18 +170,84 @@ function CohortGroup({
       {open && (
         <div className="divide-y divide-[#f0eee9] px-5">
           {members.map(member => (
-            <div key={member.id} className="flex min-h-16 items-center gap-3 py-3">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#f1efe8] text-xs font-bold text-[#214e3b]">{member.name.slice(0, 1)}</span>
+            <button key={member.id} onClick={() => onSelect(member)} className="flex min-h-16 w-full items-center gap-3 py-3 text-left transition hover:bg-[#f7f6f1]">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#f1efe8] text-xs font-bold text-[#214e3b]">{member.name.slice(0, 1)}</span>
               <div className="min-w-0">
                 <p className="font-bold text-stone-800">{member.name}{member.gender && <span className="ml-1.5 text-xs font-medium text-stone-400">{genderLabels[member.gender]}</span>}</p>
                 {member.phone && <p className="mt-0.5 text-xs text-stone-400">{member.phone}</p>}
               </div>
-              <span className={`ml-auto rounded-full px-2.5 py-1 text-[11px] font-bold ${member.status === "new" ? "bg-[#fff0df] text-[#b66b3d]" : member.status === "active" ? "bg-[#e8f0e8] text-[#2d6a4f]" : "bg-stone-100 text-stone-500"}`}>{statusLabels[member.status]}</span>
-            </div>
+              <span className={`ml-auto shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${member.status === "new" ? "bg-[#fff0df] text-[#b66b3d]" : member.status === "active" ? "bg-[#e8f0e8] text-[#2d6a4f]" : "bg-stone-100 text-stone-500"}`}>{statusLabels[member.status]}</span>
+            </button>
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+function MemberDetailDialog({ member, onClose, onSaved }: { member: Member; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState(member.name);
+  const [cohort, setCohort] = useState(String(member.cohort));
+  const [gender, setGender] = useState<Gender | "">(member.gender ?? "");
+  const [phone, setPhone] = useState(member.phone ?? "");
+  const [status, setStatus] = useState<Status>(member.status);
+
+  const updateMember = trpc.members.update.useMutation({
+    onSuccess: () => { toast.success("회원 정보를 수정했습니다."); onSaved(); },
+    onError: error => toast.error(error.message),
+  });
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const cohortNumber = Number(cohort);
+    if (!name.trim()) return toast.error("이름을 입력해 주세요.");
+    if (!cohort || !Number.isInteger(cohortNumber) || cohortNumber < 1) return toast.error("기수를 숫자로 입력해 주세요.");
+    updateMember.mutate({ id: member.id, name: name.trim(), phone: phone.trim() || null, status, cohort: cohortNumber, gender: gender || null });
+  };
+
+  return (
+    <Dialog open onOpenChange={value => !value && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>회원 정보 수정</DialogTitle></DialogHeader>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-stone-500">이름</label>
+            <input required value={name} onChange={event => setName(event.target.value)} className="h-11 w-full rounded-xl border border-[#d9d5cb] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#214e3b]" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-stone-500">기수</label>
+              <input required type="number" min={1} max={99} value={cohort} onChange={event => setCohort(event.target.value)} className="h-11 w-full rounded-xl border border-[#d9d5cb] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#214e3b]" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-stone-500">성별</label>
+              <select aria-label="성별 선택" value={gender} onChange={event => setGender(event.target.value as Gender | "")} className="h-11 w-full rounded-xl border border-[#d9d5cb] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#214e3b]">
+                <option value="">선택 안 함</option>
+                <option value="male">남</option>
+                <option value="female">여</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-stone-500">연락처</label>
+            <input value={phone} onChange={event => setPhone(event.target.value)} placeholder="선택" className="h-11 w-full rounded-xl border border-[#d9d5cb] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#214e3b]" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-stone-500">상태</label>
+            <select aria-label="상태 선택" value={status} onChange={event => setStatus(event.target.value as Status)} className="h-11 w-full rounded-xl border border-[#d9d5cb] bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#214e3b]">
+              <option value="active">재적</option>
+              <option value="new">새가족</option>
+              <option value="dormant">휴면</option>
+              <option value="transferred">전출</option>
+            </select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} className="h-11 rounded-xl">취소</Button>
+            <Button type="submit" disabled={updateMember.isPending} className="h-11 rounded-xl bg-[#214e3b] hover:bg-[#173a2b]">{updateMember.isPending ? "저장 중" : "저장"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
