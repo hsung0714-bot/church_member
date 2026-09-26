@@ -63,6 +63,14 @@ Supabase 프로젝트를 준비하면 다음 순서로 전환합니다.
 - `attendance`는 관리자만 작성·수정할 수 있고, `recorded_by`에 현재 사용자 ID를 기록합니다.
 - 연락처는 민감 정보이므로 서비스 키를 브라우저에 노출하지 않고, 기본 조회 범위도 관리자에게만 제한합니다.
 
+## 로컬 실행 준비
+
+`.env.example`을 복사해 `.env`를 만들고 값을 채웁니다. 각 변수의 용도는 파일 내 주석과 `server/_core/env.ts`를 참고하세요.
+
+```
+cp .env.example .env
+```
+
 ## 검증 결과
 
 - TypeScript: `pnpm check` 통과
