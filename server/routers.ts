@@ -19,7 +19,6 @@ import {
 } from "./_core/auth";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
-// 비밀번호 무차별 대입 방지: IP당 10분에 10회까지
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
 function checkLoginRateLimit(ip: string) {
   const now = Date.now();
@@ -94,7 +93,7 @@ export const appRouter = router({
     overview: protectedProcedure
       .input(z.object({ from: serviceDate.optional(), to: serviceDate.optional() }).optional())
       .query(({ input }) => getAnalyticsOverview(input ?? {})),
-    memberRates: publicProcedure
+    memberRates: protectedProcedure
       .input(z.object({ from: serviceDate, to: serviceDate }))
       .query(({ input }) => getMemberAttendanceRates(input.from, input.to)),
   }),
