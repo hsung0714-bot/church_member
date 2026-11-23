@@ -1,3 +1,7 @@
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { trpc } from "@/lib/trpc";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +16,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { BarChart3, CalendarCheck2, ChevronRight, LayoutDashboard, UsersRound } from "lucide-react";
+import { BarChart3, CalendarCheck2, ChevronRight, LayoutDashboard, LogOut, UsersRound } from "lucide-react";
 import { useLocation } from "wouter";
 
 const menuItems = [
@@ -22,8 +26,72 @@ const menuItems = [
   { icon: BarChart3, label: "출석 통계", path: "/analytics" },
 ];
 
+function LoginScreen() {
+  const utils = trpc.useUtils();
+  const [password, setPassword] = useState("");
+  const login = trpc.auth.login.useMutation({
+    onSuccess: async () => {
+      await utils.invalidate();
+    },
+  });
+
+  return (
+    <main className="grid min-h-screen place-items-center bg-[#f7f6f1] px-5">
+      <section className="w-full max-w-sm rounded-[2rem] border border-stone-200 bg-white p-8 text-center shadow-[0_20px_50px_rgba(69,65,53,0.12)]">
+        <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-[#214e3b] text-xl text-white">함</div>
+        <p className="text-sm font-medium text-[#b66b3d]">서기 · 임원 전용</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-stone-900">함께 출석관리</h1>
+        <form
+          className="mt-7 space-y-3 text-left"
+          onSubmit={e => {
+            e.preventDefault();
+            login.mutate({ password });
+          }}
+        >
+          <Input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="관리자 비밀번호"
+            autoComplete="current-password"
+            autoFocus
+            className="h-12 rounded-xl"
+            required
+          />
+          {login.error && <p className="text-sm text-destructive">{login.error.message}</p>}
+          <Button type="submit" disabled={login.isPending} className="h-12 w-full rounded-xl bg-[#214e3b] hover:bg-[#173a2b]">
+            {login.isPending ? "로그인 중..." : "로그인"}
+          </Button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const me = trpc.auth.me.useQuery(undefined, { retry: false, refetchOnWindowFocus: false });
+  if (me.isLoading) return <main className="min-h-screen bg-[#f7f6f1]" />;
+  if (!me.data?.authed) return <LoginScreen />;
   return <SidebarProvider><DashboardLayoutContent>{children}</DashboardLayoutContent></SidebarProvider>;
+}
+
+function LogoutButton() {
+  const utils = trpc.useUtils();
+  const logout = trpc.auth.logout.useMutation({
+    onSuccess: async () => {
+      utils.auth.me.setData(undefined, { authed: false });
+      await utils.invalidate();
+    },
+  });
+  return (
+    <button
+      onClick={() => logout.mutate()}
+      className="mt-1 flex items-center gap-2 rounded-lg px-1.5 py-1 text-xs text-stone-500 hover:text-stone-800"
+    >
+      <LogOut className="h-3.5 w-3.5" />
+      로그아웃
+    </button>
+  );
 }
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
@@ -72,6 +140,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </SidebarContent>
         <SidebarFooter className="border-t border-[#e7e4dc] p-3">
           <p className="px-1.5 text-[11px] text-stone-400">교회 서기·임원 전용 도구</p>
+          <LogoutButton />
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="min-w-0 bg-[#f7f6f1]">

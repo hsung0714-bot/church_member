@@ -6,8 +6,16 @@ function createContext(): TrpcContext {
   return {
     req: {} as TrpcContext["req"],
     res: {} as TrpcContext["res"],
+    authed: true,
   };
 }
+
+describe("auth", () => {
+  it("blocks data access without login", async () => {
+    const caller = appRouter.createCaller({ ...createContext(), authed: false });
+    await expect(caller.members.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+});
 
 describe("input validation", () => {
   it("rejects a malformed service date", async () => {

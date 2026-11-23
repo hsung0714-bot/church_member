@@ -1,12 +1,21 @@
 import { and, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import mysql from "mysql2";
 import { attendance, attendanceWeeks, members } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
-    _db = drizzle(process.env.DATABASE_URL);
+    const url = process.env.DATABASE_URL;
+    // TiDB Cloud 등 외부 MySQL은 TLS 연결이 필수
+    const needsSsl = /tidbcloud\.com/.test(url) || process.env.DATABASE_SSL === "true";
+    const pool = mysql.createPool({
+      uri: url,
+      ...(needsSsl ? { ssl: { minVersion: "TLSv1.2", rejectUnauthorized: true } } : {}),
+      connectionLimit: 5,
+    });
+    _db = drizzle(pool);
   }
   return _db;
 }
