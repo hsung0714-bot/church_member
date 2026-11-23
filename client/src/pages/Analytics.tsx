@@ -1,8 +1,14 @@
 import DatePicker from "@/components/DatePicker";
 import { trpc } from "@/lib/trpc";
-import { CalendarDays, LineChart as LineChartIcon, RotateCcw, UsersRound } from "lucide-react";
+import { CalendarDays, Copy, LineChart as LineChartIcon, RotateCcw, UsersRound } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+const CRITERIA = {
+  rate: { label: "2/3 이상", note: "2/3 이상 출석" },
+  weeks: { label: "8주 이상", note: "8주 이상 출석" },
+} as const;
 
 const SERIES = {
   total: { key: "total", label: "전체", color: "#2a78d6" },
@@ -69,7 +75,97 @@ export default function Analytics() {
           </ResponsiveContainer>
         </ChartCard>
       )}
+
+      <MemberRates />
     </div>
+  );
+}
+
+function MemberRates() {
+  const [from, setFrom] = useState("2026-01-01");
+  const [to, setTo] = useState(() => new Date().toLocaleDateString("sv-SE"));
+  const [onlyEligible, setOnlyEligible] = useState(false);
+  const [criterion, setCriterion] = useState<keyof typeof CRITERIA>("rate");
+  const [openId, setOpenId] = useState<number | null>(null);
+  const { data, isLoading } = trpc.analytics.memberRates.useQuery({ from, to }, { enabled: Boolean(from && to), retry: false });
+  const total = data?.totalWeeks ?? 0;
+  // 2/3 이상: 소수 반올림 오차 없이 정수로 비교
+  const rows = (data?.members ?? []).map(m => ({ ...m, eligible: total > 0 && (criterion === "rate" ? m.present * 3 >= total * 2 : m.present >= 8) }));
+  const shown = onlyEligible ? rows.filter(m => m.eligible) : rows;
+  const eligibleCount = rows.filter(m => m.eligible).length;
+  // 탭 구분 텍스트 → 스프레드시트에 붙여넣으면 칸별로 들어감
+  const copyRows = () => {
+    const lines = [["기수", "이름", "출석", "전체", "출석률", "자격"], ...shown.map(m => [m.cohort ? `${m.cohort}기` : "미배정", m.name, m.present, total, `${Math.round((m.present / total) * 100)}%`, m.eligible ? "O" : "X"])];
+    lines[0][5] = `자격(${CRITERIA[criterion].label})`;
+    navigator.clipboard.writeText(lines.map(l => l.join("\t")).join("\n"))
+      .then(() => toast.success(`${shown.length}명 복사됨 · 스프레드시트에 붙여넣으세요`), () => toast.error("복사에 실패했습니다"));
+  };
+
+  return (
+    <section className="rounded-[1.6rem] border border-[#e7e4dc] bg-white p-5 shadow-[0_8px_25px_rgba(68,62,48,0.04)] sm:p-6">
+      <h2 className="font-bold text-stone-800">교인별 출석률</h2>
+      <p className="mt-1 text-xs text-stone-500">시작일부터 종료일까지 출석률 · {CRITERIA[criterion].note}이면 자격 충족 · 이름을 누르면 날짜별 출석 기록</p>
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <DatePicker label="시작일" value={from} onChange={setFrom} max={to} />
+        <DatePicker label="종료일" value={to} onChange={setTo} min={from} />
+        <div className="flex h-11 rounded-xl border border-[#e7e4dc] p-1" role="group" aria-label="자격 기준">
+          {(Object.keys(CRITERIA) as (keyof typeof CRITERIA)[]).map(k => (
+            <button key={k} onClick={() => setCriterion(k)} aria-pressed={criterion === k}
+              className={`rounded-lg px-3 text-sm font-semibold ${criterion === k ? "bg-[#214e3b] text-white" : "text-stone-500 hover:bg-[#f7f6f1]"}`}>
+              {CRITERIA[k].label}
+            </button>
+          ))}
+        </div>
+        <label className="flex h-11 items-center gap-2 text-sm font-semibold text-stone-600">
+          <input type="checkbox" checked={onlyEligible} onChange={e => setOnlyEligible(e.target.checked)} className="h-4 w-4" />
+          충족자만 보기
+        </label>
+        {total > 0 && (
+          <button onClick={copyRows} className="ml-auto flex h-11 items-center gap-1.5 rounded-xl border border-[#e7e4dc] px-3 text-sm font-semibold text-stone-600 hover:bg-[#f7f6f1]">
+            <Copy className="h-4 w-4" />표로 복사
+          </button>
+        )}
+      </div>
+      {data && (
+        <p className="mt-3 text-sm text-stone-600">
+          기간 {data.from} ~ {data.to} · 예배 {total}주 · 자격 충족 <b className="text-[#214e3b]">{eligibleCount}명</b> / {rows.length}명
+        </p>
+      )}
+      {isLoading ? (
+        <p className="mt-4 text-sm text-stone-400">불러오는 중…</p>
+      ) : total === 0 ? (
+        <p className="mt-4 text-sm text-stone-400">이 기간에 저장된 출석 기록이 없습니다.</p>
+      ) : (
+        <ul className="mt-4 divide-y divide-[#eeeae1]">
+          {shown.map(m => (
+            <li key={m.id} className="text-sm">
+              <button
+                onClick={() => setOpenId(openId === m.id ? null : m.id)}
+                aria-expanded={openId === m.id}
+                className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-[#f7f6f1]"
+              >
+                <span className="w-12 shrink-0 text-xs text-stone-400">{m.cohort ? `${m.cohort}기` : "미배정"}</span>
+                <span className="flex-1 font-semibold text-stone-800">{m.name}</span>
+                <span className="text-xs text-stone-400">{m.present}/{total}주</span>
+                <span className={`w-14 text-right font-bold ${m.eligible ? "text-[#214e3b]" : "text-stone-400"}`}>{Math.round((m.present / total) * 100)}%</span>
+              </button>
+              {openId === m.id && (
+                <div className="flex flex-wrap gap-1.5 pb-3 pl-15">
+                  {data!.weeks.map(date => {
+                    const attended = m.attendedDates.includes(date);
+                    return (
+                      <span key={date} className={`rounded-lg px-2 py-1 text-xs font-semibold ${attended ? "bg-[#e8f0e8] text-[#214e3b]" : "bg-stone-100 text-stone-400 line-through"}`}>
+                        {date.slice(5).replace("-", "/")}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

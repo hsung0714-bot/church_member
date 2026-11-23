@@ -231,3 +231,44 @@ export async function getAnalyticsOverview(range: { from?: string; to?: string }
   const latestWeek = orderedWeeks[orderedWeeks.length - 1];
   return { totalMembers, trend, latestDate: latestWeek?.serviceDate ?? null };
 }
+
+export async function getMemberAttendanceRates(from: string, to: string) {
+  const db = await requireDb();
+  const inRange = and(gte(attendanceWeeks.serviceDate, from), lte(attendanceWeeks.serviceDate, to));
+
+  const weeks = await db
+    .selectDistinct({ serviceDate: attendanceWeeks.serviceDate })
+    .from(attendanceWeeks)
+    .innerJoin(attendance, eq(attendance.weekId, attendanceWeeks.id))
+    .where(inRange)
+    .orderBy(attendanceWeeks.serviceDate);
+
+  const presentRows = await db
+    .select({ memberId: attendance.memberId, serviceDate: attendanceWeeks.serviceDate })
+    .from(attendance)
+    .innerJoin(attendanceWeeks, eq(attendance.weekId, attendanceWeeks.id))
+    .where(and(eq(attendance.attended, true), inRange));
+  const attendedBy = new Map<number, Set<string>>();
+  for (const row of presentRows) {
+    const dates = attendedBy.get(row.memberId) ?? new Set<string>();
+    dates.add(row.serviceDate);
+    attendedBy.set(row.memberId, dates);
+  }
+
+  const roster = await db
+    .select({ id: members.id, name: members.name, cohort: members.cohort, status: members.status })
+    .from(members)
+    .where(inArray(members.status, [...attendingStatuses]))
+    .orderBy(sql`${members.cohort} is null`, members.cohort, members.name);
+
+  return {
+    from,
+    to,
+    weeks: weeks.map(week => week.serviceDate),
+    totalWeeks: weeks.length,
+    members: roster.map(member => {
+      const dates = attendedBy.get(member.id) ?? new Set<string>();
+      return { ...member, present: dates.size, attendedDates: Array.from(dates) };
+    }),
+  };
+}

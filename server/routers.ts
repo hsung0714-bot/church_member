@@ -4,6 +4,7 @@ import {
   deleteMember,
   getAnalyticsOverview,
   getDashboardSummary,
+  getMemberAttendanceRates,
   getWeeklyAttendance,
   listMembers,
   saveWeeklyAttendance,
@@ -93,6 +94,9 @@ export const appRouter = router({
     overview: protectedProcedure
       .input(z.object({ from: serviceDate.optional(), to: serviceDate.optional() }).optional())
       .query(({ input }) => getAnalyticsOverview(input ?? {})),
+    memberRates: publicProcedure
+      .input(z.object({ from: serviceDate, to: serviceDate }))
+      .query(({ input }) => getMemberAttendanceRates(input.from, input.to)),
   }),
 });
 
