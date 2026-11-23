@@ -35,7 +35,6 @@ export default function DatePicker({
   max?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const minDate = parseDate(min ?? "");
   const maxDate = parseDate(max ?? "");
 
   return (
@@ -67,7 +66,7 @@ export default function DatePicker({
           locale={ko}
           selected={parseDate(value)}
           defaultMonth={parseDate(value) ?? maxDate ?? new Date()}
-          disabled={(date: Date) => (minDate ? date < minDate : false) || (maxDate ? date > maxDate : false)}
+          disabled={(date: Date) => Boolean((min && formatDate(date) < min) || (max && formatDate(date) > max))}
           onSelect={date => { if (date) { onChange(formatDate(date)); setOpen(false); } }}
         />
       </PopoverContent>

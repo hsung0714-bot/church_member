@@ -5,9 +5,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+// 소수 반올림 오차 없이 정수 곱셈으로 비교
 const CRITERIA = {
-  rate: { label: "2/3 이상", note: "2/3 이상 출석" },
-  weeks: { label: "8주 이상", note: "8주 이상 출석" },
+  rate: { label: "2/3 이상", note: "2/3 이상 출석", meets: (present: number, total: number) => present * 3 >= total * 2 },
+  half: { label: "1/2 이상", note: "1/2 이상 출석", meets: (present: number, total: number) => present * 2 >= total },
+  weeks: { label: "8주 이상", note: "8주 이상 출석", meets: (present: number) => present >= 8 },
 } as const;
 
 const SERIES = {
@@ -89,8 +91,7 @@ function MemberRates() {
   const [openId, setOpenId] = useState<number | null>(null);
   const { data, isLoading } = trpc.analytics.memberRates.useQuery({ from, to }, { enabled: Boolean(from && to), retry: false });
   const total = data?.totalWeeks ?? 0;
-  // 2/3 이상: 소수 반올림 오차 없이 정수로 비교
-  const rows = (data?.members ?? []).map(m => ({ ...m, eligible: total > 0 && (criterion === "rate" ? m.present * 3 >= total * 2 : m.present >= 8) }));
+  const rows = (data?.members ?? []).map(m => ({ ...m, eligible: total > 0 && CRITERIA[criterion].meets(m.present, total) }));
   const shown = onlyEligible ? rows.filter(m => m.eligible) : rows;
   const eligibleCount = rows.filter(m => m.eligible).length;
   // 탭 구분 텍스트 → 스프레드시트에 붙여넣으면 칸별로 들어감
@@ -128,7 +129,7 @@ function MemberRates() {
       </div>
       {data && (
         <p className="mt-3 text-sm text-stone-600">
-          기간 {data.from} ~ {data.to} · 예배 {total}주 · 자격 충족 <b className="text-[#214e3b]">{eligibleCount}명</b> / {rows.length}명
+          기간 {data.from} ~ {data.to} · 예배 {total}주 · 자격 충족 <b className="text-[#214e3b]">{eligibleCount}명</b> / 전체 {rows.length}명
         </p>
       )}
       {isLoading ? (
